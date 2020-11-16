@@ -4,12 +4,12 @@ const socket = new WebSocket('ws://localhost:8080');
 
 const browsing = new CoBrowsing({
   root: document.getElementById("root") as HTMLElement,
-  coBrowsingExec: false,
+  remotePeer: true,
   socket: socket
 })
 
 // socket.addEventListener('message', (event) => {
-  
+
 // });
 
 // const mutation = (events) => {
@@ -22,7 +22,7 @@ const browsing = new CoBrowsing({
 //         const newValueOfAttribute = target.getAttribute(attributeName)
 //         if (oldValueOfAttribute !== newValueOfAttribute) {
 //           socket.send({
-            
+
 //           })
 //         }
 //         break
