@@ -3,7 +3,7 @@ import { CoBrowsing } from './cobrowsing/serialization';
 const socket = new WebSocket('ws://localhost:8080');
 
 const browsing = new CoBrowsing({
-  root: document.getElementById("root") as HTMLElement,
+  root: document.body as HTMLElement,
   remotePeer: true,
   socket: socket
 })
