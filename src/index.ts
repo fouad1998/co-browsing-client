@@ -1,12 +1,11 @@
 import { CoBrowsing } from './cobrowsing/serialization';
+import * as ReactDOM from 'react-dom'
+import App from './App'
 
-const socket = new WebSocket('ws://localhost:8080');
 
-const browsing = new CoBrowsing({
-  root: document.body as HTMLElement,
-  remotePeer: true,
-  socket: socket
-})
+ReactDOM.render(
+  <React.s
+  , document.getElementById("root"))
 
 // socket.addEventListener('message', (event) => {
 

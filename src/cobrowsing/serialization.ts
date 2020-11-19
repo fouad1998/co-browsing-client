@@ -33,6 +33,12 @@ export interface LastEventOccurred {
     allowedToSend: boolean
 }
 
+export interface Session {
+    history: Array<string>;
+    started: boolean;
+    ended: boolean;
+}
+
 export class CoBrowsing {
     private _id = -1;
     private map: Map<number, HTMLElement | Document>
@@ -45,10 +51,11 @@ export class CoBrowsing {
     private config: Partial<CoBrowsingInterface> = {}
     private socket: WebSocket
     private lastEventOccurred: LastEventOccurred = { content: null, allowedToSend: true, throwFunc: true }
-    private restrictionTime: number = 100 // 50ms
+    private restrictionTime: number = 50 // 50ms
     private receivingScrollEvent: boolean = false
     private isMouseScroll: boolean = false
     private building: boolean = false
+    private session: Session = { history: [], started: false, ended: false }
     private readonly eventsHandled = ['onmouseover', 'onmouseenter', 'onmouseout', "onmousemove", 'oninput', 'onchange', 'onkeypress', 'onkeydown']
 
     constructor(props: CoBrowsingInterface) {
@@ -78,6 +85,10 @@ export class CoBrowsing {
 
     setConfig(config: CoBrowsingInterface) {
         this.config = config
+    }
+
+    getSession() {
+        return this.session
     }
 
     /**
@@ -587,7 +598,6 @@ export class CoBrowsing {
                                 break
                             }
 
-
                             case MOUSE_EVENTS_TYPE.POSITION: {
                                 this.mouse!.style.display = "block";
                                 this.mouse!.style.left = clientX + "px";
@@ -656,11 +666,13 @@ export class CoBrowsing {
 
                             case DOM_EVENTS_TYPE.SNAPSHOT: {
                                 this.building = true
-                                console.log("DOM event Snapshot")
                                 // substract the event
-                                const content = eventContent.content as SnapShotEvent
+                                const content = eventContent.content as SnapShotEvent;
                                 // substract the DOM content
-                                const DOM = content.content
+                                const DOM = content.content;
+                                this.session.history.push(content.href);
+                                this.session.started = true;
+                                this.session.ended = false;
                                 // Setup the wrapper and iframe to heberge the new received dom
                                 this.setup()
                                 // Start building the DOM
@@ -707,6 +719,15 @@ export class CoBrowsing {
                                 }
                                 break
                             }
+
+                            case WINDOW_EVENTS_TYPE.CHANGE_URL: {
+                                if (this.config.remotePeer) { return void 0 }
+                                const href = eventContent.content as string
+                                window.location.href = href
+                                break;
+                            }
+
+
                         }
                         break
                     }
