@@ -46,6 +46,7 @@ export class CoBrowsing {
     private mouse: HTMLDivElement | null = null
     private iframeWrapper: HTMLDivElement | null = null
     private wrapper: HTMLDivElement | null = null
+    private wholeWrapper: HTMLDivElement | null = null // TO keep the css dimension of the container
     private stopDoing: HTMLDivElement | null = null
     private root: HTMLElement
     private config: Partial<CoBrowsingInterface> = {}
@@ -151,10 +152,11 @@ export class CoBrowsing {
                 // Get needed data from iframe
                 const width = this.iframeWrapper!.style.width.replace(/(^[0-9]+).+/, "$1")
                 const height = this.iframeWrapper!.style.height.replace(/(^[0-9]+).+/, "$1")
-                console.log({ width, height })
+                // Get container dimension
+                const { width: wrapperWidth, height: wrapperHeight } = this.wholeWrapper!.getBoundingClientRect()
                 // Make the scale
-                const xScale = !width ? 1 : innerWidth / +width
-                const yScale = !height ? 1 : innerHeight / +height
+                const xScale = !width ? 1 : wrapperWidth / +width
+                const yScale = !height ? 1 : wrapperHeight / +height
                 // Set the Scale
                 this.wrapper!.style.transform = `scaleX(${xScale}) scaleY(${yScale})`
             } else {
@@ -694,10 +696,10 @@ export class CoBrowsing {
                                 // subtract the event content
                                 const { width, height } = eventContent.content as Resize;
                                 // subtract innerHeight and innerWidth
-                                const { innerWidth, innerHeight } = window
+                                const { height: wrapperHeight, width: wrapperWidth } = this.wholeWrapper!.getBoundingClientRect()
                                 // Calculate the corresponding scale for each Axis
-                                const xScale = innerWidth / width;
-                                const yScale = innerHeight / height;
+                                const xScale = wrapperWidth / width;
+                                const yScale = wrapperHeight / height;
                                 // Set the width and height of corresponding iframe element
                                 this.iframeWrapper!.style.width = `${width}px`
                                 this.iframeWrapper!.style.height = `${height}px`
@@ -748,13 +750,14 @@ export class CoBrowsing {
 
     private setup() {
         // Remove the previous container
-        if (this.wrapper) this.wrapper.remove()
+        if (this.wholeWrapper) this.wholeWrapper.remove()
         // Create elements
         const mouseCursor = document.createElement("img")
         this.iframe = document.createElement("iframe")
         this.iframeWrapper = document.createElement("div")
         this.mouse = document.createElement("div")
         this.wrapper = document.createElement("div")
+        this.wholeWrapper = document.createElement("div")
         // Add some properties
         mouseCursor.src = "https://tl.vhv.rs/dpng/s/407-4077994_mouse-pointer-png-png-download-mac-mouse-pointer.png"
         this.mouse.classList.add("__emplorium_blocked")
@@ -768,6 +771,7 @@ export class CoBrowsing {
         this.mouse.style.zIndex = "1000000"
         this.iframe.classList.add("__emplorium-iframe")
         this.wrapper.classList.add("__emplorium-wrapper")
+        this.wholeWrapper.classList.add("__emplorium-whole-wrapper")
         this.iframe.style.width = "100%";
         this.iframe.style.height = "100%";
         this.iframeWrapper.style.width = "100%";
@@ -779,12 +783,19 @@ export class CoBrowsing {
         this.wrapper.style.maxHeight = "100%";
         this.wrapper.style.minWidth = "100%";
         this.wrapper.style.minHeight = "100%";
+        this.wholeWrapper.style.width = "100%";
+        this.wholeWrapper.style.height = "100%";
+        this.wholeWrapper.style.maxWidth = "100%";
+        this.wholeWrapper.style.maxHeight = "100%";
+        this.wholeWrapper.style.minWidth = "100%";
+        this.wholeWrapper.style.minHeight = "100%";
         // Append them by each other
         this.mouse.append(mouseCursor)
         this.iframeWrapper.append(this.iframe)
         this.wrapper.append(this.iframeWrapper)
         this.wrapper.append(this.mouse)
-        this.root.append(this.wrapper)
+        this.wholeWrapper.append(this.wrapper)
+        this.root.append(this.wholeWrapper)
 
         //Stop making event
         this.stopDoing = this.iframe.contentDocument!.createElement("div")
