@@ -25,6 +25,7 @@ export interface CoBrowsingInterface {
     root: HTMLElement;
     remotePeer: boolean // If the co-browser is used to execute remote event
     socket: WebSocket// the websocket connection, it can be other thing if we want like (RTC, XHR...)
+    sameScreenSize: boolean
 }
 
 export interface LastEventOccurred {
@@ -68,34 +69,26 @@ export class CoBrowsing {
         this.config = props
         this.socket = props.socket
         this.socket.onmessage = this.executeEvent
-        // bind
-        this.snapshot = this.snapshot.bind(this)
-        this.buildElementNode = this.buildElementNode.bind(this)
-        this.executeEvent = this.executeEvent.bind(this)
-        this.rebuildDOM = this.rebuildDOM.bind(this)
-        this.serializeDOMElement = this.serializeDOMElement.bind(this)
-        this.startMutationObserver = this.startMutationObserver.bind(this)
-        this.setup = this.setup.bind(this)
-        this.mutationObserverHandler = this.mutationObserverHandler.bind(this)
-        this.setConfig = this.setConfig.bind(this)
-        this.buildDOM = this.buildDOM.bind(this)
-        this.executeEvent = this.executeEvent.bind(this)
-        this.listenToWindowEvents = this.listenToWindowEvents.bind(this)
-        this.listenToMousePosition = this.listenToMousePosition.bind(this)
     }
 
-    setConfig(config: Partial<CoBrowsingInterface>) {
-        this.config = { ...this.config, ...config }
+    setConfig = (config: Partial<CoBrowsingInterface>) => {
+        console.log("config......")
+        debugger
+        this.config.sameScreenSize = true
+        Object.assign(this.config, config)
+        console.log("config......")
     }
 
-    getSession() {
+    getConfig = () => { return this.config }
+
+    getSession = () => {
         return this.session
     }
 
     /**
      * Transform the current document to a string representation, in order to rebuild it after
      */
-    snapshot(): HTMLElementSerialization | undefined {
+    snapshot = (): HTMLElementSerialization | undefined => {
         // The remote (Agent in our case) peer doesn't need to create snapshot of his webpage
         if (this.config.remotePeer) return undefined
         // Create serialization of the Document
@@ -140,25 +133,34 @@ export class CoBrowsing {
         document.body.append(this.mouse)
     }
 
+    private scaleWrapper = () => {
+        // Get needed data from iframe
+        const width = this.iframeWrapper!.style.width.replace(/(^[0-9]+).+/, "$1")
+        const height = this.iframeWrapper!.style.height.replace(/(^[0-9]+).+/, "$1")
+        // Get container dimension
+        const { width: wrapperWidth, height: wrapperHeight } = this.wholeWrapper!.getBoundingClientRect()
+        // Make the scale
+        debugger
+        const xScale = isNaN(+width) ? 1 : wrapperWidth >= +width && this.config.sameScreenSize ? 1 : wrapperWidth / +width
+        const yScale = isNaN(+height) ? 1 : wrapperHeight >= +height && this.config.sameScreenSize ? 1 : wrapperHeight / +height
+        const newWrapperHeight = yScale >= 1 ? 1 : 1 + (1 - yScale)
+        const newWrapperWidth = xScale >= 1 ? 1 : 1 + (1 - xScale)
+        // Set the Scale
+        this.wrapper!.style.transform = `scaleX(${xScale}) scaleY(${yScale})`
+        this.wrapper!.style.height = `${newWrapperHeight * 100}%`
+        this.wrapper!.style.width = `${newWrapperWidth * 100}%`
+    }
+
     /**
      * Listen to window size and throw the event using socket to the other side
      * 
      * NOTE: THE CLIENT SIDE WHO FOLLOW, NOT THE AGENCY SIDE
      */
-    private listenToWindowEvents() {
+    private listenToWindowEvents = () => {
         const resizeHandler = () => {
             const { innerHeight, innerWidth } = window
             if (this.config.remotePeer) {
-                // Get needed data from iframe
-                const width = this.iframeWrapper!.style.width.replace(/(^[0-9]+).+/, "$1")
-                const height = this.iframeWrapper!.style.height.replace(/(^[0-9]+).+/, "$1")
-                // Get container dimension
-                const { width: wrapperWidth, height: wrapperHeight } = this.wholeWrapper!.getBoundingClientRect()
-                // Make the scale
-                const xScale = !width ? 1 : wrapperWidth / +width
-                const yScale = !height ? 1 : wrapperHeight / +height
-                // Set the Scale
-                this.wrapper!.style.transform = `scaleX(${xScale}) scaleY(${yScale})`
+                this.scaleWrapper()
             } else {
                 // Window event content
                 const event: WindowEvent = {
@@ -240,7 +242,7 @@ export class CoBrowsing {
         resizeHandler()
     }
 
-    private listenToMousePosition() {
+    private listenToMousePosition = () => {
         const mousePositionHandler = (event: any) => {
             // get the mouse position
             const { clientX, clientY } = event
@@ -285,7 +287,7 @@ export class CoBrowsing {
         }
     }
 
-    private mutationObserverHandler(events: Array<any>) {
+    private mutationObserverHandler = (events: Array<any>) => {
         events.forEach(event => {
             //If the virtual mouse who change the attributes, we don't want to send
             if (this.mouse === event.target) { return void 0 }
@@ -362,7 +364,7 @@ export class CoBrowsing {
         });
     }
 
-    private startMutationObserver() {
+    private startMutationObserver = () => {
         const mutation = new MutationObserver(this.mutationObserverHandler)
         const body = this.config.remotePeer ? this.iframe!.contentDocument!.body : document.body
         mutation.observe(body as HTMLElement, {
@@ -373,12 +375,12 @@ export class CoBrowsing {
         })
     }
 
-    private buildDOM(DOMString: string | HTMLElementSerialization): void {
+    private buildDOM = (DOMString: string | HTMLElementSerialization): void => {
         const DOM = typeof DOMString === "string" ? JSON.parse(DOMString) as HTMLElementSerialization : DOMString
         this.rebuildDOM(DOM, this.iframe?.contentDocument as Document, true)
     }
 
-    private sendEvent(event: HTMLEvent) {
+    private sendEvent = (event: HTMLEvent) => {
         // If the event to send is not allowed to be send, we save it to send it later
         if (event.type !== EVENTS_TYPE.DOM && !this.lastEventOccurred.allowedToSend) {
             // If the event we want to send is the same type, we don't allow till the time restriction is out 
@@ -506,7 +508,6 @@ export class CoBrowsing {
                     case EVENTS_TYPE.MOUSE: {
                         console.log("Mouse event to execute....")
                         const recursiveHandlerCall = (node: HTMLElement, handler: (node: HTMLElement) => ((event: MouseEvent) => any)) => {
-                            debugger
                             const func = handler(node)
                             let stopped = false;
                             const stopPropagation = () => { stopped = true };
@@ -695,16 +696,10 @@ export class CoBrowsing {
                                 console.log("Resize received.....")
                                 // subtract the event content
                                 const { width, height } = eventContent.content as Resize;
-                                // subtract innerHeight and innerWidth
-                                const { height: wrapperHeight, width: wrapperWidth } = this.wholeWrapper!.getBoundingClientRect()
-                                // Calculate the corresponding scale for each Axis
-                                const xScale = wrapperWidth / width;
-                                const yScale = wrapperHeight / height;
                                 // Set the width and height of corresponding iframe element
                                 this.iframeWrapper!.style.width = `${width}px`
                                 this.iframeWrapper!.style.height = `${height}px`
-                                // Set a scale on container
-                                this.wrapper!.style.transform = `scaleX(${xScale}) scaleY(${yScale})`
+                                this.scaleWrapper()
                                 break
                             }
 
@@ -732,7 +727,7 @@ export class CoBrowsing {
                     }
                 }
             } catch (e) {
-                console.log("Faild to execute the event", parsedEvent.type, e)
+                console.error("Faild to execute the event", parsedEvent.type, e)
             }
 
         } catch (e) {
@@ -740,7 +735,7 @@ export class CoBrowsing {
         }
     }
 
-    private rebuildDOM(serialization: string | HTMLElementSerialization, dom: Document, isIframe: boolean) {
+    private rebuildDOM = (serialization: string | HTMLElementSerialization, dom: Document, isIframe: boolean) => {
         if (typeof serialization === "string") {
             serialization = JSON.parse(serialization)
         }
@@ -748,7 +743,7 @@ export class CoBrowsing {
         return (this.buildElementNode(serialization as HTMLElementSerialization, [], dom, isIframe));
     }
 
-    private setup() {
+    private setup = () => {
         // Remove the previous container
         if (this.wholeWrapper) this.wholeWrapper.remove()
         // Create elements
@@ -795,6 +790,7 @@ export class CoBrowsing {
         this.wrapper.append(this.iframeWrapper)
         this.wrapper.append(this.mouse)
         this.wholeWrapper.append(this.wrapper)
+        console.log(this.wholeWrapper, this.root)
         this.root.append(this.wholeWrapper)
 
         //Stop making event
@@ -807,7 +803,7 @@ export class CoBrowsing {
 
     }
 
-    private serializeDOMElement(element: HTMLElement | Document, notGiveNewId: boolean = false): HTMLElementSerialization | undefined {
+    private serializeDOMElement = (element: HTMLElement | Document, notGiveNewId: boolean = false): HTMLElementSerialization | undefined => {
         switch (element.nodeType) {
             case document.ELEMENT_NODE: {
                 element = element as HTMLElement
@@ -832,9 +828,8 @@ export class CoBrowsing {
                 }).reduce((acc, v) => ({ ...acc, ...v }), {})
                 //@ts-ignore
                 const listenEvents = this.eventsHandled.filter(event => element[event] !== null)
-                if (element.id === "test") {
-                    console.clear()
-                    console.log("The element is here: ", listenEvents, attributes)
+                if ((element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT")) {
+                    this.addEventListener(element, "oninput")
                 }
                 const child = {
                     id,
@@ -890,7 +885,7 @@ export class CoBrowsing {
         return void 0;
     }
 
-    private buildElementNode(element: HTMLElementSerialization, forwardEvents: Array<string>, virtualDocument?: Document, isIframe?: boolean): HTMLElement | Document | Text | undefined {
+    private buildElementNode = (element: HTMLElementSerialization, forwardEvents: Array<string>, virtualDocument?: Document, isIframe?: boolean): HTMLElement | Document | Text | undefined => {
         try {
             switch (element.type) {
                 case document.DOCUMENT_NODE: {
@@ -957,7 +952,7 @@ export class CoBrowsing {
      * @param node 
      * @param eventType 
      */
-    private addEventListener(node: HTMLElement | Text, eventType: string) {
+    private addEventListener = (node: HTMLElement | Text, eventType: string) => {
         const handler = (event: any) => {
             event.stopPropagation();
             event.preventDefault();
