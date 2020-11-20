@@ -83,8 +83,8 @@ export class CoBrowsing {
         this.listenToMousePosition = this.listenToMousePosition.bind(this)
     }
 
-    setConfig(config: CoBrowsingInterface) {
-        this.config = config
+    setConfig(config: Partial<CoBrowsingInterface>) {
+        this.config = { ...this.config, ...config }
     }
 
     getSession() {
@@ -99,9 +99,6 @@ export class CoBrowsing {
         if (this.config.remotePeer) return undefined
         // Create serialization of the Document
         const DOMVirual = this.serializeDOMElement(document)
-        console.log(this._id)
-        console.log(DOMVirual)
-        console.log(JSON.parse(JSON.stringify(DOMVirual)))
         // Create the event content
         const event: SnapShotEvent = {
             href: window.location.href,
@@ -776,12 +773,12 @@ export class CoBrowsing {
         this.iframeWrapper.style.width = "100%";
         this.iframeWrapper.style.height = "100%";
         this.wrapper.style.transformOrigin = " 0 0 0";
-        this.wrapper.style.width = "100vw";
-        this.wrapper.style.height = "100vh";
-        this.wrapper.style.maxWidth = "100vw";
-        this.wrapper.style.maxHeight = "100vh";
-        this.wrapper.style.minWidth = "100vw";
-        this.wrapper.style.minHeight = "100vh";
+        this.wrapper.style.width = "100%";
+        this.wrapper.style.height = "100%";
+        this.wrapper.style.maxWidth = "100%";
+        this.wrapper.style.maxHeight = "100%";
+        this.wrapper.style.minWidth = "100%";
+        this.wrapper.style.minHeight = "100%";
         // Append them by each other
         this.mouse.append(mouseCursor)
         this.iframeWrapper.append(this.iframe)
