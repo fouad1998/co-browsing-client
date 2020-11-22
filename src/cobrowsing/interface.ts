@@ -3,6 +3,7 @@ export enum EVENTS_TYPE {
   MOUSE,
   DOM,
   SELECTION,
+  STYLE,
   WINDOW
 }
 export enum WINDOW_EVENTS_TYPE {
@@ -94,6 +95,12 @@ export interface DOMEvent {
   content: HTMLElementRemovedEvent | HTMLElementSerialization | AttributeEvent | SnapShotEvent | DOMEventChange
 }
 
+
+// STyle event
+export interface StyleEvent {
+  id: number;
+  content: Object;
+}
 
 
 
