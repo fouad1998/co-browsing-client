@@ -147,6 +147,36 @@ export class CoBrowsing {
     this.makeVirtualMouse();
   };
 
+  gotoURL = (URL: string) => {
+    if (!this.config.remotePeer) {
+      return void 0;
+    }
+    const windowEvent: WindowEvent = {
+      type: WINDOW_EVENTS_TYPE.CHANGE_URL,
+      content: URL,
+    };
+    const event: HTMLEvent = {
+      type: EVENTS_TYPE.WINDOW,
+      data: windowEvent,
+    };
+    this.sendEvent(event);
+  };
+
+  reloadThePage = () => {
+    if (!this.config.remotePeer) {
+      return void 0;
+    }
+    const windowEvent: WindowEvent = {
+      type: WINDOW_EVENTS_TYPE.RELOAD,
+      content: '',
+    };
+    const event: HTMLEvent = {
+      type: EVENTS_TYPE.WINDOW,
+      data: windowEvent,
+    };
+    this.sendEvent(event);
+  };
+
   private makeVirtualMouse = () => {
     // Make virtual cursor
     const mouseCursor = document.createElement('img');
@@ -261,13 +291,13 @@ export class CoBrowsing {
       };
       this.sendEvent(event);
     };
-    history.pushState = ((f) =>
-      function pushState() {
-        //@ts-ignore
-        var ret = f.apply(this, arguments);
-        URLChange();
-        return ret;
-      })(history.pushState);
+    // history.pushState = ((f) =>
+    //   function pushState() {
+    //     //@ts-ignore
+    //     var ret = f.apply(this, arguments);
+    //     URLChange();
+    //     return ret;
+    //   })(history.pushState);
     // Selection event
     const selectionHandler = () => {
       // let selection = null
@@ -747,9 +777,11 @@ export class CoBrowsing {
 
               case DOM_EVENTS_TYPE.SNAPSHOT: {
                 this.building = true;
-                this.config.onstartSession && this.config.onstartSession();
                 // substract the event
                 const content = eventContent.content as SnapShotEvent;
+                this.config.onstartSession && this.config.onstartSession();
+                this.config.onchangeURL && this.config.onchangeURL(content.href);
+                this.session.history.push(content.href);
                 // substract the DOM content
                 const DOM = content.content;
                 this.session.history.push(content.href);
@@ -804,6 +836,14 @@ export class CoBrowsing {
                 } else {
                   window.location.href = href;
                 }
+                break;
+              }
+
+              case WINDOW_EVENTS_TYPE.RELOAD: {
+                if (this.config.remotePeer) {
+                  return void 0;
+                }
+                window.location.reload();
                 break;
               }
             }

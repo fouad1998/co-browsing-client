@@ -4,13 +4,14 @@ export enum EVENTS_TYPE {
   DOM,
   SELECTION,
   STYLE,
-  WINDOW
+  WINDOW,
 }
 export enum WINDOW_EVENTS_TYPE {
   RESIZE = 0,
   SCROLL,
   LOADED,
-  CHANGE_URL
+  CHANGE_URL,
+  RELOAD,
 }
 export enum DOM_EVENTS_TYPE {
   DOM_CHANGE = 0,
@@ -33,10 +34,8 @@ export enum MOUSE_EVENTS_TYPE {
   MOUSE_OVER,
   MOUSE_MOVE,
   POSITION,
-  OUT_OF_SCREEN
+  OUT_OF_SCREEN,
 }
-
-
 
 // Window Events
 //Scroll event
@@ -51,11 +50,9 @@ export interface Resize {
 }
 // Window Event
 export interface WindowEvent {
-  type: WINDOW_EVENTS_TYPE
-  content: Resize | Scroll | string
+  type: WINDOW_EVENTS_TYPE;
+  content: Resize | Scroll | string;
 }
-
-
 
 // DOM Events
 
@@ -71,30 +68,29 @@ export interface HTMLElementSerialization {
 }
 // When the HTML element has lost number of children
 export interface HTMLElementRemovedEvent {
-  chidlrenId: Array<number>
-  id: number
+  chidlrenId: Array<number>;
+  id: number;
 }
 // DOM Event, kind of element change all his chidlren or add new children to the list
 export interface DOMEventChange {
   id: number;
-  content: HTMLElementSerialization
+  content: HTMLElementSerialization;
 }
 // Attriute of an element has changed attributes
 export interface AttributeEvent {
   id: number;
-  content: {}
+  content: {};
 }
 // The first kind of event can be sent to the remote peer,
 export interface SnapShotEvent {
-  href: string
-  content: HTMLElementSerialization
+  href: string;
+  content: HTMLElementSerialization;
 }
 // DOM Event
 export interface DOMEvent {
-  type: DOM_EVENTS_TYPE
-  content: HTMLElementRemovedEvent | HTMLElementSerialization | AttributeEvent | SnapShotEvent | DOMEventChange
+  type: DOM_EVENTS_TYPE;
+  content: HTMLElementRemovedEvent | HTMLElementSerialization | AttributeEvent | SnapShotEvent | DOMEventChange;
 }
-
 
 // STyle event
 export interface StyleEvent {
@@ -102,29 +98,25 @@ export interface StyleEvent {
   content: Object;
 }
 
-
-
 // Mouse events
 
 // mouse click event
 export interface mouseCoordonate {
-  clientX: number,
-  clientY: number,
-  ctrl?: boolean,
-  alt?: boolean,
-  shift?: boolean,
-  movementX?: number,
-  movementY?: number,
-  offsetX?: number,
-  pageY?: number,
-  pageX?: number,
-  screenX?: number,
-  screenY?: number,
-  x?: number,
-  y?: number
+  clientX: number;
+  clientY: number;
+  ctrl?: boolean;
+  alt?: boolean;
+  shift?: boolean;
+  movementX?: number;
+  movementY?: number;
+  offsetX?: number;
+  pageY?: number;
+  pageX?: number;
+  screenX?: number;
+  screenY?: number;
+  x?: number;
+  y?: number;
 }
-
-
 
 // Input events
 
@@ -141,10 +133,9 @@ export interface input {
 }
 
 export interface InputEvent {
-  type: INPUT_EVENTS_TYPE,
-  content: input
+  type: INPUT_EVENTS_TYPE;
+  content: input;
 }
-
 
 // Hightlighted event
 export interface HightLightedEvent {

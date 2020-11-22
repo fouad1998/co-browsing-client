@@ -1,4 +1,4 @@
-import { CoBrowsing, Session } from "./cobrowsing/serialization";
+import { CoBrowsing, Session } from './cobrowsing/serialization';
 
 export enum CO_BROWSING_REDUCER {
   BROWSING = 0,
@@ -8,6 +8,9 @@ export enum CO_BROWSING_REDUCER {
   SHOW_TOOLS,
   SHOW_SETTINGS,
   SAME_USER_SCREEN_SIZE,
+  SESSION_START,
+  SESSION_KEY,
+  SHOW_HISTORY,
 }
 
 export enum TOOL_USING {
@@ -24,51 +27,78 @@ export interface coBrowsingReducerInterface {
   selectedTool: TOOL_USING;
   showSettings: boolean;
   sameUserScreenSize: boolean;
+  startedSession: boolean;
+  sessionKey: string;
+  showHistory: boolean;
 }
 
-export const coBrowsingReducer = (state: coBrowsingReducerInterface, action: { type: CO_BROWSING_REDUCER, payload: Partial<coBrowsingReducerInterface> }): coBrowsingReducerInterface => {
+export const coBrowsingReducer = (
+  state: coBrowsingReducerInterface,
+  action: { type: CO_BROWSING_REDUCER; payload: Partial<coBrowsingReducerInterface> }
+): coBrowsingReducerInterface => {
   switch (action.type) {
     case CO_BROWSING_REDUCER.SESSION: {
       if (action.payload.session) {
-        return { ...state, session: action.payload.session }
+        return { ...state, session: action.payload.session };
       }
-      break
+      break;
     }
 
     case CO_BROWSING_REDUCER.URL: {
       if (action.payload.currentURL) {
-        return { ...state, currentURL: action.payload.currentURL }
+        return { ...state, currentURL: action.payload.currentURL };
       }
-      break
+      break;
     }
 
     case CO_BROWSING_REDUCER.SHOW_TOOLS: {
-      if (typeof action.payload.showTools === "boolean") {
-        return { ...state, showTools: action.payload.showTools }
+      if (typeof action.payload.showTools === 'boolean') {
+        return { ...state, showTools: action.payload.showTools };
       }
-      break
+      break;
     }
 
     case CO_BROWSING_REDUCER.TOOL_CHANGE: {
-      if (typeof action.payload.selectedTool === "number") {
-        return { ...state, selectedTool: action.payload.selectedTool }
+      if (typeof action.payload.selectedTool === 'number') {
+        return { ...state, selectedTool: action.payload.selectedTool };
       }
-      break
+      break;
     }
 
     case CO_BROWSING_REDUCER.SHOW_SETTINGS: {
-      if (typeof action.payload.showSettings === "boolean") {
-        return { ...state, showSettings: action.payload.showSettings }
+      if (typeof action.payload.showSettings === 'boolean') {
+        return { ...state, showSettings: action.payload.showSettings };
       }
-      break
+      break;
     }
 
     case CO_BROWSING_REDUCER.SAME_USER_SCREEN_SIZE: {
-      if (typeof action.payload.sameUserScreenSize === "boolean") {
-        return { ...state, sameUserScreenSize: action.payload.sameUserScreenSize }
+      if (typeof action.payload.sameUserScreenSize === 'boolean') {
+        return { ...state, sameUserScreenSize: action.payload.sameUserScreenSize };
       }
-      break
+      break;
+    }
+
+    case CO_BROWSING_REDUCER.SESSION_START: {
+      if (typeof action.payload.startedSession === 'boolean') {
+        return { ...state, startedSession: action.payload.startedSession };
+      }
+      break;
+    }
+
+    case CO_BROWSING_REDUCER.SESSION_KEY: {
+      if (typeof action.payload.sessionKey === 'string') {
+        return { ...state, sessionKey: action.payload.sessionKey };
+      }
+      break;
+    }
+
+    case CO_BROWSING_REDUCER.SHOW_HISTORY: {
+      if (typeof action.payload.showHistory === 'boolean') {
+        return { ...state, showHistory: action.payload.showHistory };
+      }
+      break;
     }
   }
-  return state
-}
+  return state;
+};
