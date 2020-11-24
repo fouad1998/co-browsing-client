@@ -139,8 +139,9 @@ export interface InputEvent {
 
 // Hightlighted event
 export interface HightLightedEvent {
-  id: number;
-  type: number;
-  content?: string;
+  startNodeId?: number;
+  endNodeId?: number;
+  startNodeOffset?: number;
+  endNodeOffset?: number;
   clear?: boolean;
 }

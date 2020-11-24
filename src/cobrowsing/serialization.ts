@@ -1,4 +1,3 @@
-import { CSSProperties } from 'react';
 import {
   AttributeEvent,
   DOMEvent,
@@ -65,13 +64,20 @@ export class CoBrowsing {
   private wrapper: HTMLDivElement | null = null;
   private wholeWrapper: HTMLDivElement | null = null; // TO keep the css dimension of the container
   private stopDoing: HTMLDivElement | null = null;
+  private selectionNode: HTMLElement | null = null;
+  private loadingWrapper: HTMLElement | null = null;
   private root: HTMLElement;
   private config: Partial<CoBrowsingInterface> = {};
   private socket: WebSocket;
   private lastEventOccurred: LastEventOccurred = { content: null, allowedToSend: true, throwFunc: true };
   private restrictionTime: number = 30; // 30ms
   private receivingScrollEvent: boolean = false;
+  private notConsiderTheNewChild: boolean = false;
   private isMouseScroll: boolean = false;
+  private isClearedSelection: boolean = false;
+  private lastSelection: Selection | null = null;
+  private isReceivingSelectionEvent: { status: boolean; timeoutfunc: number } = { status: false, timeoutfunc: 0 };
+  private isStyleChangedByEvent: boolean = false;
   private building: boolean = false;
   private session: Session = { history: [], started: false, ended: false };
   private readonly wantedAttributes = ['style', 'class', 'src'];
@@ -300,18 +306,61 @@ export class CoBrowsing {
     //   })(history.pushState);
     // Selection event
     const selectionHandler = () => {
-      // let selection = null
-      // if (this.config.remotePeer) {
-      //     selection = this.iframe!.contentWindow!.getSelection()
-      // } else {
-      //     selection = window.getSelection()
-      // }
-      // if (selection) {
-      //     selection.anchorNode
-      //     selection.
-      // }
-    };
+      if (this.isReceivingSelectionEvent.status) {
+        return void 0;
+      }
 
+      let selection = null;
+      if (this.config.remotePeer) {
+        selection = this.iframe!.contentDocument!.getSelection();
+      } else {
+        selection = document.getSelection();
+      }
+
+      const selected = selection?.toString();
+      // if the selected text is just space or
+      if (selected && selected !== '' && !/^[\s]+$/.test(selected)) {
+        console.log('Selection');
+        this.isClearedSelection = false;
+        const startNode = selection?.anchorNode;
+        const endNode = selection?.focusNode;
+        const startNodeOffset = selection?.anchorOffset;
+        const endNodeOffset = selection?.focusOffset;
+        if (
+          startNode !== this.lastSelection?.anchorNode ||
+          endNode !== this.lastSelection?.focusNode ||
+          startNodeOffset !== this.lastSelection?.anchorOffset ||
+          endNodeOffset !== this.lastSelection?.focusOffset
+        ) {
+          this.lastSelection = { ...selection! };
+          console.log({ startNode, endNode, startNodeOffset, endNodeOffset }, selected);
+          const selectionEvent: HightLightedEvent = {
+            //@ts-ignore
+            startNodeId: startNode.__emploriumId,
+            //@ts-ignore
+            endNodeId: endNode.__emploriumId,
+            startNodeOffset,
+            endNodeOffset,
+          };
+          const event: HTMLEvent = {
+            type: EVENTS_TYPE.SELECTION,
+            data: selectionEvent,
+          };
+          this.sendEvent(event);
+        }
+      } else if (!this.isClearedSelection) {
+        console.log('Selection clear...');
+        this.isClearedSelection = true;
+        const selectionEvent: HightLightedEvent = {
+          clear: true,
+        };
+        const event: HTMLEvent = {
+          type: EVENTS_TYPE.SELECTION,
+          data: selectionEvent,
+        };
+        this.sendEvent(event);
+      }
+    };
     const wheelScroll = () => {
       this.isMouseScroll = true;
     };
@@ -319,11 +368,13 @@ export class CoBrowsing {
     window.addEventListener('resize', resizeHandler);
     if (this.config.remotePeer) {
       this.iframe!.contentWindow!.addEventListener('scroll', scrollHandler);
+      this.iframe!.contentDocument!.addEventListener('selectionchange', selectionHandler);
     } else {
       window.addEventListener('scroll', scrollHandler);
       window.addEventListener('wheel', wheelScroll);
       window.addEventListener('mousewheel', wheelScroll);
       window.addEventListener('popstate', URLChange);
+      document.addEventListener('selectionchange', selectionHandler);
     }
     // Send the first set of dimension
     resizeHandler();
@@ -383,10 +434,13 @@ export class CoBrowsing {
       switch (event.type) {
         case 'attributes': {
           const attributeName = event.attributeName;
+          // If the style changed by an received event, no need to send them
+          if (attributeName === 'style' && this.isStyleChangedByEvent) {
+            return void 0;
+          }
           const oldValueOfAttribute = event.oldValue;
           const target = event.target;
           const newValueOfAttribute = target.getAttribute(attributeName);
-          console.log('Attribute change, .... ', { attributeName, oldValueOfAttribute, newValueOfAttribute });
           if (oldValueOfAttribute !== newValueOfAttribute) {
             const id = target.__emploriumId;
             const event: AttributeEvent = {
@@ -401,12 +455,15 @@ export class CoBrowsing {
               type: EVENTS_TYPE.DOM,
               data: domEvent,
             };
-            this.sendEvent(eventSend);
+            //this.sendEvent(eventSend);
           }
           break;
         }
 
         case 'childList': {
+          if (this.notConsiderTheNewChild) {
+            return void 0;
+          }
           const { addedNodes, removedNodes, target } = event;
           if (Array.from(addedNodes).length === 0) {
             // there is no element removed, too strange, it shouldn't be the case
@@ -428,7 +485,7 @@ export class CoBrowsing {
               data: domEvent,
               type: EVENTS_TYPE.DOM,
             };
-            this.sendEvent(eventSend);
+            //this.sendEvent(eventSend);
           } else {
             // IN this case the element can be added as can be removed
             const serialize = this.serializeDOMElement(target, true) as HTMLElementSerialization;
@@ -444,7 +501,7 @@ export class CoBrowsing {
               data: domEvent,
               type: EVENTS_TYPE.DOM,
             };
-            this.sendEvent(eventSend);
+            //this.sendEvent(eventSend);
           }
           break;
         }
@@ -453,15 +510,15 @@ export class CoBrowsing {
   };
 
   private startMutationObserver = () => {
-    const mutation = new MutationObserver(this.mutationObserverHandler);
-    const body = this.config.remotePeer ? this.iframe!.contentDocument!.body : document.body;
-    mutation.observe(body as HTMLElement, {
-      attributeOldValue: true,
-      attributes: true,
-      subtree: true,
-      childList: true,
-      attributeFilter: this.wantedAttributes,
-    });
+    // const mutation = new MutationObserver(this.mutationObserverHandler);
+    // const body = this.config.remotePeer ? this.iframe!.contentDocument!.body : document.body;
+    // mutation.observe(body as HTMLElement, {
+    //   attributeOldValue: true,
+    //   attributes: true,
+    //   subtree: true,
+    //   childList: true,
+    //   attributeFilter: this.wantedAttributes,
+    // });
   };
 
   private buildDOM = (DOMString: string | HTMLElementSerialization): void => {
@@ -470,10 +527,14 @@ export class CoBrowsing {
   };
 
   private sendEvent = (event: HTMLEvent) => {
-    // If the event to send is not allowed to be send, we save it to send it later
+    // // If the event to send is not allowed to be send, we save it to send it later
     // if (event.type !== EVENTS_TYPE.DOM && !this.lastEventOccurred.allowedToSend) {
     //   // If the event we want to send is the same type, we don't allow till the time restriction is out
-    //   if (this.lastEventOccurred.content!.type === event.type && this.lastEventOccurred.content!.data.type === event.data.type) {
+    //   if (
+    //     this.lastEventOccurred.content!.type === event.type &&
+    //     //@ts-ignore
+    //     (event.type === EVENTS_TYPE.SELECTION || this.lastEventOccurred.content!.data.type === event.data.type)
+    //   ) {
     //     this.lastEventOccurred.content = event;
     //     if (this.lastEventOccurred.throwFunc) {
     //       setTimeout(() => {
@@ -709,16 +770,48 @@ export class CoBrowsing {
           }
 
           case EVENTS_TYPE.STYLE: {
-            const styleEvent = parsedEvent.data as StyleEvent;
-            const node = this.map.get(styleEvent.id) as HTMLElement;
-            Object.keys(styleEvent.content).forEach((key) => {
-              //@ts-ignore
-              node.style.setProperty(key, styleEvent.content[key]);
-            });
+            // const styleEvent = parsedEvent.data as StyleEvent;
+            // const node = this.map.get(styleEvent.id) as HTMLElement;
+            // this.isStyleChangedByEvent = true;
+            // Object.keys(styleEvent.content).forEach((key) => {
+            //   //@ts-ignore
+            //   node.style.setProperty(key, styleEvent.content[key]);
+            // });
+            // this.isStyleChangedByEvent = false;
             break;
           }
 
           case EVENTS_TYPE.SELECTION: {
+            this.isReceivingSelectionEvent.status = true;
+            clearTimeout(this.isReceivingSelectionEvent.timeoutfunc);
+            const event = parsedEvent.data as HightLightedEvent;
+            const selection = this.config.remotePeer ? this.iframe!.contentDocument!.getSelection() : document.getSelection();
+            selection?.removeAllRanges();
+            selection?.empty();
+            console.log('Selection clear.....', selection);
+            if (!event.clear) {
+              console.log('Selection');
+              const startNode = this.map.get(event.startNodeId as number) as HTMLElement;
+              const endNode = this.map.get(event.endNodeId as number) as HTMLElement;
+              const startNodeOffset = event.startNodeOffset as number;
+              const endNodeOffset = event.endNodeOffset as number;
+              console.log({ startNode, endNode, startNodeOffset, endNodeOffset });
+              const range = new Range();
+              range.setStart(startNode, startNodeOffset);
+              range.setEnd(endNode, endNodeOffset);
+              selection?.addRange(range);
+              if (selection?.focusOffset === selection?.anchorOffset) {
+                range.setEnd(startNode, startNodeOffset);
+                range.setStart(endNode, endNodeOffset);
+                selection?.removeAllRanges();
+                selection?.empty();
+                selection?.addRange(range);
+              }
+              console.log('aftr selection ', selection);
+            }
+            const timeoutID = setTimeout(() => (this.isReceivingSelectionEvent.status = false), 200);
+            //@ts-ignore
+            this.isReceivingSelectionEvent.timeoutfunc = timeoutID;
             break;
           }
 
@@ -903,6 +996,33 @@ export class CoBrowsing {
     this.root.append(this.wholeWrapper);
 
     this.makeVirtualMouse();
+
+    // Loading section
+    this.loadingWrapper = document.createElement('div');
+    this.loadingWrapper.style.width = '100%';
+    this.loadingWrapper.style.height = '100%';
+    this.loadingWrapper.style.maxWidth = '100%';
+    this.loadingWrapper.style.maxHeight = '100%';
+    this.loadingWrapper.style.minWidth = '100%';
+    this.loadingWrapper.style.minHeight = '100%';
+    this.loadingWrapper.style.display = 'flex';
+    this.loadingWrapper.style.position = 'absolute';
+    this.loadingWrapper.style.zIndex = '1000';
+    this.loadingWrapper.style.justifyContent = 'center';
+    this.loadingWrapper.style.alignItems = 'center';
+    this.loadingWrapper.style.background = '#000A';
+    this.loadingWrapper.style.color = 'white';
+    this.loadingWrapper.style.fontSize = 'xx-large';
+    this.loadingWrapper.style.top = '0px';
+    this.loadingWrapper.style.left = '0px';
+    this.loadingWrapper.style.right = '0px';
+    this.loadingWrapper.style.bottom = '0px';
+    this.loadingWrapper.innerHTML = 'Loading...';
+    this.iframeWrapper.style.position = 'relative';
+    this.wholeWrapper.append(this.loadingWrapper);
+    this.iframe.addEventListener('load', () => {
+      this.loadingWrapper && (this.loadingWrapper.style.display = 'none');
+    });
 
     //Stop making event
     this.stopDoing = this.iframe.contentDocument!.createElement('div');
@@ -1153,7 +1273,6 @@ export class CoBrowsing {
                 });
                 const length = Object.keys(changedStyle).length;
                 if (length > 0) {
-                  console.log('facebookkkkk', length);
                   savePreviousState.set(id, previousChangedStyle);
                   this.styleMap.set(id, Object.assign(previousStyle, changedStyle));
                   const styleEvent: StyleEvent = {
@@ -1164,7 +1283,7 @@ export class CoBrowsing {
                     type: EVENTS_TYPE.STYLE,
                     data: styleEvent,
                   };
-                  this.sendEvent(event);
+                  // this.sendEvent(event);
                 }
                 //@ts-ignore
                 node.childNodes.forEach((child) => checkStyle(child as HTMLElement, child.__emploriumId));
